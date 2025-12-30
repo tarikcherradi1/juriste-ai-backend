@@ -65,17 +65,19 @@ STRUCTURE DE L'ANALYSE :
 - Recommandations
 
 Réponds de manière claire, précise et professionnelle, UNIQUEMENT à partir du texte fourni.`,
-  
-};
 
   ar: `أنت مكتب استشارات قانونية متخصص في القانون المغربي والفرنسي والدولي.
 
-ستستقبل النص الكامل للوثيقة أدناه، ويجب عليك تحليله.
-لا تقل أبداً: "لا أستطيع الوصول إلى الوثيقة" أو "لا أستطيع تحليل هذه الوثيقة".
+ستستقبل أدناه نص الوثيقة (أو مقطعاً طويلاً منها) ويمكنك قراءته بالكامل.
+يجب عليك أن تبني تحليلك على هذا النص.
 
-قم بتحليل هذه الوثيقة القانونية بشكل منظم ومهني.
+ممنوع منعاً باتاً:
+- أن تقول "لا أستطيع الوصول إلى الوثيقة" أو "لا أستطيع تحليل هذه الوثيقة" أو "انسخ/ألصق النص".
+- أن تطلب من المستخدم أن يراجع الوثيقة بنفسه بدلاً من التحليل.
 
-هيكل التحليل:
+يجب أن تشتغل دائماً على النص الموجود في رسالة المستخدم، حتى لو كان مقتطعاً أو غير كامل.
+
+قم بتحليل هذه الوثيقة القانونية بشكل منظم ومهني وفق البنية التالية:
 
 1. طبيعة الوثيقة وموضوعها
 2. ملخص الوقائع
@@ -84,16 +86,23 @@ Réponds de manière claire, précise et professionnelle, UNIQUEMENT à partir d
 5. القرار / المنطوق
 6. النطاق والآثار
 
-أجب بوضوح ودقة ومهنية.`,
+أجب بوضوح ودقة ومهنية، اعتماداً على النص المقدم فقط.`,
 
   en: `You are an expert legal consulting firm specialized in Moroccan, French, and international law.
 
-You ALWAYS receive the full document text in the prompt below. You MUST analyse it.
-You MUST NOT say: "I cannot access the document", "I cannot analyse this document" or ask the user to copy/paste the text.
+You ALWAYS receive the document text (or a sufficiently long extract) in the user message below and you CAN read it.
+You MUST base your analysis on that text.
 
-Analyze this legal document in a structured and professional manner.
+STRICTLY FORBIDDEN:
+- Saying "I cannot access the document", 
+  "I cannot analyse this document",
+  "I cannot open the file",
+  or "please copy/paste the text".
+- Telling the user to consult the document themselves instead of analysing it.
 
-ANALYSIS STRUCTURE:
+You must ALWAYS work with the text provided in the user message, even if it is partial or truncated.
+
+Analyze this legal document in a structured and professional manner:
 
 1. NATURE AND PURPOSE OF DOCUMENT
 2. SUMMARY OF FACTS
@@ -102,16 +111,23 @@ ANALYSIS STRUCTURE:
 5. DECISION / RULING
 6. SCOPE AND IMPLICATIONS
 
-Respond clearly, precisely, and professionally.`,
+Respond clearly, precisely, and professionally, ONLY based on the text provided.`,
 
-  es: `Eres un despacho de asesoría jurídica experto especializado en derecho marroquí, francés e internacional.
+  es: `Eres un despacho de asesoría jurídica experto en derecho marroquí, francés e internacional.
 
-Siempre recibes el texto completo del documento en el mensaje de usuario y debes analizarlo.
-NO debes decir nunca: "no puedo acceder al documento" o "no puedo analizar este documento".
+SIEMPRE recibes el texto del documento (o un extracto suficientemente largo) en el mensaje del usuario y PUEDES leerlo.
+Debes basar tu análisis en ese texto.
 
-Analiza este documento jurídico de manera estructurada y profesional.
+ESTÁ ESTRICTAMENTE PROHIBIDO:
+- Decir "no puedo acceder al documento", 
+  "no puedo analizar este documento",
+  "no puedo abrir el archivo"
+  o "copie y pegue el texto".
+- Indicar al usuario que consulte él mismo el documento en lugar de analizarlo.
 
-ESTRUCTURA DEL ANÁLISIS:
+Debes trabajar SIEMPRE con el texto proporcionado, aunque esté incompleto o truncado.
+
+Analiza este documento jurídico de manera estructurada y profesional:
 
 1. NATURALEZA Y OBJETO DEL DOCUMENTO
 2. RESUMEN DE LOS HECHOS
@@ -120,7 +136,7 @@ ESTRUCTURA DEL ANÁLISIS:
 5. DECISIÓN / FALLO
 6. ALCANCE E IMPLICACIONES
 
-Responde de manera clara, precisa y profesional.`,
+Responde de forma clara, precisa y profesional, SOLO a partir del texto proporcionado.`,
 };
 
 /**
@@ -294,6 +310,20 @@ DOCUMENT ACCESS RULES
       documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
   }
 
+  // Bloc spécial si la question porte sur les jurisprudences
+  const isCaseLawQuestion = /jurisprudence/i.test(question);
+
+  const extraInstruction = isCaseLawQuestion
+    ? `
+INSTRUCTIONS SPECIFIQUES (JURISPRUDENCES) :
+- Tu dois LISTER LES JURISPRUDENCES CONTENUES DANS LE TEXTE DU DOCUMENT CI‑DESSUS.
+- Commence par repérer toutes les références à des décisions de justice (noms des parties, juridictions, dates, numéros de décisions, etc.) mentionnées dans le texte fourni.
+- Si certaines informations manquent dans le texte (numéro de décision, numéro de dossier…), indique "inconnu (à vérifier)" plutôt que de les inventer.
+- Tu peux compléter ou vérifier grâce à tes connaissances juridiques générales, MAIS tu ne dois jamais inventer de décisions inexistantes.
+- Tu NE DOIS PAS répondre de manière générale sur "comment lister la jurisprudence" : tu dois lister ce qui est réellement dans le document fourni.
+`
+    : "";
+
   const userContent = `
 DOCUMENT FOURNI (TEXTE ISSU DE L'UPLOAD / EXTRACTION) :
 ${textForContext}
@@ -308,33 +338,7 @@ RAPPEL :
 - Tu ne dois jamais dire que tu n'as pas accès au document.
 - Si certaines informations manquent réellement dans ce texte, tu le dis clairement,
   mais tu réponds quand même au mieux avec les éléments disponibles.
-`;
-
-  const answer = await callDeepSeek(systemPrompt, userContent, 0.2);
-  console.log(`[DeepSeek] Réponse: ${answer.length} chars`);
-  return answer;
-}
-
-  const maxLength = 25000;
-  let textForContext = documentText;
-  if (documentText.length > maxLength) {
-    textForContext =
-      documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
-  }
-
-  const userContent = `
-DOCUMENT FOURNI (CONTEXTE) :
-${textForContext}
-
----
-
-QUESTION DE L'UTILISATEUR :
-${question}
-
-RAPPEL IMPORTANT :
-- Tu disposes bien du texte ci‑dessus.
-- Tu NE DOIS PAS dire que tu ne peux pas accéder au document.
-- Tu dois répondre en suivant strictement la structure demandée (Règle générale, Base légale, Jurisprudence).
+${extraInstruction}
 `;
 
   const answer = await callDeepSeek(systemPrompt, userContent, 0.2);
