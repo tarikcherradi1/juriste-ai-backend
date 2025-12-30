@@ -1,0 +1,17 @@
+# Configuration Render.com
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: juriste-ai-backend
+    env: node
+    region: frankfurt  # Plus proche du Maroc
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false  # À configurer manuellement dans Render
+      - key: NODE_ENV
+        value: production
