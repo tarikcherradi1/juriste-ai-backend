@@ -42,8 +42,12 @@ app.post("/api/extract", upload.single("file"), async (req, res) => {
     const highPrecision = req.body.highPrecision === "true";
     const forceOcr = req.body.forceOcr === "true";
 
-    console.log(`[API] Extraction PDF: ${req.file.originalname} (${req.file.size} bytes)`);
-    console.log(`[API] Options: highPrecision=${highPrecision}, forceOcr=${forceOcr}`);
+    console.log(
+      `[API] Extraction PDF: ${req.file.originalname} (${req.file.size} bytes)`
+    );
+    console.log(
+      `[API] Options: highPrecision=${highPrecision}, forceOcr=${forceOcr}`
+    );
 
     const startTime = Date.now();
 
@@ -55,7 +59,9 @@ app.post("/api/extract", upload.single("file"), async (req, res) => {
     }
 
     const duration = Date.now() - startTime;
-    console.log(`[API] Extraction terminée en ${duration}ms: ${result.fullText.length} chars, ${result.chunks.length} chunks`);
+    console.log(
+      `[API] Extraction terminée en ${duration}ms: ${result.fullText.length} chars, ${result.chunks.length} chunks`
+    );
 
     res.json({
       success: true,
@@ -65,10 +71,11 @@ app.post("/api/extract", upload.single("file"), async (req, res) => {
       ocrUsed: result.ocrUsed,
       processingTime: duration,
     });
-
   } catch (error: any) {
     console.error("[API] Erreur extraction:", error);
-    res.status(500).json({ error: error.message || "Erreur extraction PDF" });
+    res
+      .status(500)
+      .json({ error: error.message || "Erreur extraction PDF" });
   }
 });
 
@@ -91,7 +98,9 @@ app.post("/api/analyze", upload.single("file"), async (req, res) => {
     const extraction = await extractPdfText(req.file.buffer, highPrecision);
 
     if (!extraction.fullText || extraction.fullText.length < 50) {
-      return res.status(400).json({ error: "Aucun texte détecté dans le PDF" });
+      return res
+        .status(400)
+        .json({ error: "Aucun texte détecté dans le PDF" });
     }
 
     // 2. Analyse par DeepSeek
@@ -104,10 +113,11 @@ app.post("/api/analyze", upload.single("file"), async (req, res) => {
       analysis: analysis,
       ocrUsed: extraction.ocrUsed,
     });
-
   } catch (error: any) {
     console.error("[API] Erreur analyse:", error);
-    res.status(500).json({ error: error.message || "Erreur analyse document" });
+    res
+      .status(500)
+      .json({ error: error.message || "Erreur analyse document" });
   }
 });
 
@@ -120,7 +130,9 @@ app.post("/api/ask", async (req, res) => {
     const { text, question, language } = req.body;
 
     if (!text || !question) {
-      return res.status(400).json({ error: "Texte et question requis" });
+      return res
+        .status(400)
+        .json({ error: "Texte et question requis" });
     }
 
     console.log(`[API] Question: "${question.slice(0, 50)}..."`);
@@ -131,10 +143,11 @@ app.post("/api/ask", async (req, res) => {
       success: true,
       answer: answer,
     });
-
   } catch (error: any) {
     console.error("[API] Erreur question:", error);
-    res.status(500).json({ error: error.message || "Erreur lors de la réponse" });
+    res
+      .status(500)
+      .json({ error: error.message || "Erreur lors de la réponse" });
   }
 });
 
@@ -155,19 +168,22 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "Clé API non configurée" });
     }
 
-    const response = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: messages,
-        temperature: 0.3,
-        max_tokens: 4000,
-      }),
-    });
+    const response = await fetch(
+      "https://api.deepseek.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: messages,
+          temperature: 0.3,
+          max_tokens: 4000,
+        }),
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`DeepSeek API error: ${response.status}`);
@@ -175,7 +191,6 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
     res.json(data);
-
   } catch (error: any) {
     console.error("[API] Erreur chat:", error);
     res.status(500).json({ error: error.message || "Erreur API" });
