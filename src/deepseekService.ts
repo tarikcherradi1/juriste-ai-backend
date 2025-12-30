@@ -141,7 +141,6 @@ Responde de forma clara, precisa y profesional, SOLO a partir del texto proporci
 
 /**
  * Prompt système spécialisé pour les réponses "question + jurisprudence"
- * (pour /api/ask)
  */
 const CASE_LAW_SYSTEM_PROMPT = `
 You are a legal assistant.
@@ -153,8 +152,9 @@ IMPORTANT CONTEXT
   * "I cannot access the document"
   * "I cannot analyse this document"
   * "Please copy/paste the text"
+  * "please consult the document yourself"
   * "I cannot list all jurisprudence".
-  Instead, you MUST work with the text you have and provide the BEST possible structured answer.
+Instead, you MUST work with the text you have and provide the BEST possible structured answer.
 
 GENERAL RULES
 - Always answer ONLY in the target language indicated in the instruction.
@@ -234,7 +234,7 @@ async function callDeepSeek(
 }
 
 /**
- * Analyse un document juridique
+ * Analyse un document juridique (structure d'analyse générale)
  */
 export async function analyzeDocument(
   documentText: string,
@@ -267,7 +267,6 @@ export async function analyzeDocument(
 /**
  * Répond à une question sur un document + jurisprudence structurée
  */
-
 export async function askQuestion(
   documentText: string,
   question: string,
@@ -310,7 +309,6 @@ DOCUMENT ACCESS RULES
       documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
   }
 
-  // Bloc spécial si la question porte sur les jurisprudences
   const isCaseLawQuestion = /jurisprudence/i.test(question);
 
   const extraInstruction = isCaseLawQuestion
