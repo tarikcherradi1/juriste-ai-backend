@@ -21,7 +21,7 @@ const ANALYSIS_PROMPT = {
 
 Analyse ce document juridique de manière structurée et professionnelle.
 
-STRUCTURE DE L'ANALYSE:
+STRUCTURE DE L'ANALYSE :
 
 1. NATURE ET OBJET DU DOCUMENT
 - Type de document (arrêt, jugement, contrat, loi, etc.)
@@ -101,6 +101,54 @@ ESTRUCTURA DEL ANÁLISIS:
 Responde de manera clara, precisa y profesional.`,
 };
 
+/**
+ * Prompt système spécialisé pour les réponses "question + jurisprudence"
+ */
+const CASE_LAW_SYSTEM_PROMPT = `
+You are a legal assistant.
+
+GENERAL RULES
+- Always answer ONLY in the target language indicated in the instruction.
+- Base your reasoning FIRST on the supplied document, THEN complement with external legal sources when needed.
+- You MUST search conceptually in specialized and official legal sources (government and court websites, official law databases) when information is missing, but you MUST NOT invent case details.
+- If you are NOT sure of any information (country, date, court, decision number, case number, legal rule), you MUST explicitly say that it is incomplete or uncertain.
+
+OUTPUT STRUCTURE (plain text, but ALWAYS in this order and with these headings):
+
+1. Règle générale (max 100 caractères)
+   - One concise sentence summarizing the general legal rule or the core idea.
+
+2. Base légale (max 100 caractères)
+   - Main statutes / articles / key legal terms that apply.
+
+3. Jurisprudence
+   For each relevant case, present it as a block using EXACTLY this sub-structure:
+
+   - Pays :
+   - Date :
+   - Tribunal :
+   - Num décision :
+   - Num dossier :
+   - Règle de droit appliquée :
+   - Résumé (compréhensible pour un non-juriste, 3 à 5 phrases max) :
+
+CASE SELECTION RULES
+- Select only cases that are RELEVANT to the user's question AND to the content of the provided document.
+- Always TRY to include at least:
+  * 2 cases from Morocco
+  * 1 case from France
+  * 1 case from Spain
+  * 1 case from Egypt
+- If you cannot find enough reliable information for one country, you MUST:
+  * state clearly that information is incomplete for that country,
+  * NEVER fabricate fake dates, courts, or numbers.
+
+VALIDATION RULES
+- If a field is unknown or uncertain, write "inconnu (à vérifier)" instead of inventing.
+- Do NOT say that you "cannot list all jurisprudence"; instead, give the BEST FEW cases you can find according to the constraints above.
+- The whole answer must remain understandable for non-lawyers.
+`;
+
 /* -------------------------------------------------------------------------- */
 /* FONCTIONS API                                                              */
 /* -------------------------------------------------------------------------- */
@@ -119,7 +167,7 @@ async function callDeepSeek(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: "deepseek-chat",
@@ -142,40 +190,48 @@ async function callDeepSeek(
 }
 
 /**
- * Analyse un document juridique
+ * Analyse un document juridique (structure d'analyse générale)
  */
 export async function analyzeDocument(
   documentText: string,
   language: string = "fr"
 ): Promise<string> {
-  console.log(`[DeepSeek] Analyse document (${documentText.length} chars, langue: ${language})`);
+  console.log(
+    `[DeepSeek] Analyse document (${documentText.length} chars, langue: ${language})`
+  );
 
-  const systemPrompt = ANALYSIS_PROMPT[language as keyof typeof ANALYSIS_PROMPT] || ANALYSIS_PROMPT.fr;
-  
-  // Limiter le texte si trop long (environ 15% du document)
+  const systemPrompt =
+    ANALYSIS_PROMPT[language as keyof typeof ANALYSIS_PROMPT] ||
+    ANALYSIS_PROMPT.fr;
+
+  // Limiter le texte si trop long
   const maxLength = 30000;
   let textToAnalyze = documentText;
   if (documentText.length > maxLength) {
-    textToAnalyze = documentText.slice(0, maxLength) + "\n\n[... document tronqué pour l'analyse ...]";
+    textToAnalyze =
+      documentText.slice(0, maxLength) +
+      "\n\n[... document tronqué pour l'analyse ...]";
   }
 
-  const userContent = `Voici le document à analyser:\n\n${textToAnalyze}`;
+  const userContent = `Voici le document à analyser :\n\n${textToAnalyze}`;
 
   const analysis = await callDeepSeek(systemPrompt, userContent);
-  
+
   console.log(`[DeepSeek] Analyse terminée: ${analysis.length} chars`);
   return analysis;
 }
 
 /**
- * Répond à une question sur un document
+ * Répond à une question sur un document + jurisprudence structurée
  */
 export async function askQuestion(
   documentText: string,
   question: string,
   language: string = "fr"
 ): Promise<string> {
-  console.log(`[DeepSeek] Question: "${question.slice(0, 50)}..."`);
+  console.log(
+    `[DeepSeek] Question: "${question.slice(0, 50)}..." (langue: ${language})`
+  );
 
   const langNames: Record<string, string> = {
     fr: "French",
@@ -186,21 +242,40 @@ export async function askQuestion(
 
   const targetLang = langNames[language] || "French";
 
-  const systemPrompt = `Tu es un assistant juridique expert. Réponds UNIQUEMENT en ${targetLang}.
-Base ta réponse uniquement sur le document fourni.
-Si l'information n'est pas dans le document, dis-le clairement.`;
+  // Prompt système spécialisé pour Q/R + jurisprudence
+  const systemPrompt = `
+${CASE_LAW_SYSTEM_PROMPT}
+
+TARGET LANGUAGE
+- You MUST answer ONLY in ${targetLang}.
+`;
 
   // Limiter le texte si trop long
   const maxLength = 25000;
   let textForContext = documentText;
   if (documentText.length > maxLength) {
-    textForContext = documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
+    textForContext =
+      documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
   }
 
-  const userContent = `Document:\n${textForContext}\n\n---\n\nQuestion: ${question}`;
+  const userContent = `
+Document (contexte) :
+${textForContext}
+
+---
+
+Question de l'utilisateur :
+${question}
+
+Tâche :
+1. Identifier la règle générale de droit applicable (max 100 caractères).
+2. Identifier la base légale (articles de loi, codes, mots-clés) en max 100 caractères.
+3. Proposer des jurisprudences pertinentes (Maroc, France, Espagne, Égypte) en respectant STRICTEMENT la structure demandée.
+4. Rester compréhensible pour des non-juristes.
+`;
 
   const answer = await callDeepSeek(systemPrompt, userContent, 0.2);
-  
+
   console.log(`[DeepSeek] Réponse: ${answer.length} chars`);
   return answer;
 }
