@@ -19,8 +19,16 @@ function getApiKey(): string {
 const ANALYSIS_PROMPT = {
   fr: `Tu es un cabinet de conseils juridiques expert spécialisé dans le droit marocain, français et international.
 
-TU REÇOIS CI‑DESSOUS LE TEXTE COMPLET DU DOCUMENT. Tu peux et tu dois l'analyser.
-Tu NE DOIS JAMAIS dire : "je ne peux pas accéder au document", "je ne peux pas analyser ce document" ou "copiez/collez le texte".
+TU REÇOIS CI‑DESSOUS LE TEXTE DU DOCUMENT (ou un extrait suffisamment long) ET TU PEUX LIRE SON CONTENU.
+TU DOIS L’ANALYSER À PARTIR DE CE TEXTE. 
+
+INTERDICTIONS ABSOLUES :
+- Tu NE DOIS JAMAIS écrire que tu "ne peux pas accéder au document", 
+  "ne peux pas analyser le document", 
+  "ne peux pas ouvrir le fichier",
+  ou "merci de copier-coller le texte".
+- Tu NE DOIS PAS renvoyer l’utilisateur vers la consultation manuelle du document.
+Tu dois toujours travailler sur le texte transmis dans le message utilisateur, même s’il est partiel ou tronqué.
 
 Analyse ce document juridique de manière structurée et professionnelle.
 
@@ -56,7 +64,9 @@ STRUCTURE DE L'ANALYSE :
 - Impact pratique
 - Recommandations
 
-Réponds de manière claire, précise et professionnelle.`,
+Réponds de manière claire, précise et professionnelle, UNIQUEMENT à partir du texte fourni.`,
+  
+};
 
   ar: `أنت مكتب استشارات قانونية متخصص في القانون المغربي والفرنسي والدولي.
 
@@ -241,6 +251,7 @@ export async function analyzeDocument(
 /**
  * Répond à une question sur un document + jurisprudence structurée
  */
+
 export async function askQuestion(
   documentText: string,
   question: string,
@@ -264,7 +275,45 @@ ${CASE_LAW_SYSTEM_PROMPT}
 
 TARGET LANGUAGE
 - You MUST answer ONLY in ${targetLang}.
+
+DOCUMENT ACCESS RULES
+- The full relevant text of the document is included in the user message.
+- You MUST assume you can read it and analyse it.
+- You MUST NOT say:
+  * "I cannot access the document"
+  * "I cannot analyse this document"
+  * "please consult the document yourself"
+  * "please copy/paste the text".
+- Instead, ALWAYS base your answer on the text provided, even if it looks partial or truncated.
 `;
+
+  const maxLength = 25000;
+  let textForContext = documentText;
+  if (documentText.length > maxLength) {
+    textForContext =
+      documentText.slice(0, maxLength) + "\n\n[... document tronqué ...]";
+  }
+
+  const userContent = `
+DOCUMENT FOURNI (TEXTE ISSU DE L'UPLOAD / EXTRACTION) :
+${textForContext}
+
+---
+
+QUESTION DE L'UTILISATEUR :
+${question}
+
+RAPPEL :
+- Tu dois utiliser CE texte pour répondre.
+- Tu ne dois jamais dire que tu n'as pas accès au document.
+- Si certaines informations manquent réellement dans ce texte, tu le dis clairement,
+  mais tu réponds quand même au mieux avec les éléments disponibles.
+`;
+
+  const answer = await callDeepSeek(systemPrompt, userContent, 0.2);
+  console.log(`[DeepSeek] Réponse: ${answer.length} chars`);
+  return answer;
+}
 
   const maxLength = 25000;
   let textForContext = documentText;
