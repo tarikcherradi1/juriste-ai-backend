@@ -19,7 +19,7 @@ function getApiKey(): string {
 const ANALYSIS_PROMPT = {
   fr: `Tu es un cabinet de conseils juridiques expert spécialisé dans le droit marocain, français et international.
 
-TU REÇOIS CI‑DESSOUS LE TEXTE DU DOCUMENT (ou un extrait suffisamment long) ET TU PEUX LIRE SON CONTENU.
+TU REÇOIS CI‑DESSOUS LE TEXTE DU DOCUMENT (par exemple un PDF uploadé comme "التقرير السنوي لمحكمة النقض 2015_OCR") ET TU PEUX LIRE SON CONTENU.
 TU DOIS L’ANALYSER À PARTIR DE CE TEXTE. 
 
 INTERDICTIONS ABSOLUES :
@@ -68,7 +68,7 @@ Réponds de manière claire, précise et professionnelle, UNIQUEMENT à partir d
 
   ar: `أنت مكتب استشارات قانونية متخصص في القانون المغربي والفرنسي والدولي.
 
-ستستقبل أدناه نص الوثيقة (أو مقطعاً طويلاً منها) ويمكنك قراءته بالكامل.
+ستستقبل أدناه نص الوثيقة (مثلاً ملف PDF مرفوع مثل "التقرير السنوي لمحكمة النقض 2015_OCR") ويمكنك قراءته بالكامل.
 يجب عليك أن تبني تحليلك على هذا النص.
 
 ممنوع منعاً باتاً:
@@ -90,7 +90,7 @@ Réponds de manière claire, précise et professionnelle, UNIQUEMENT à partir d
 
   en: `You are an expert legal consulting firm specialized in Moroccan, French, and international law.
 
-You ALWAYS receive the document text (or a sufficiently long extract) in the user message below and you CAN read it.
+You ALWAYS receive the document text (for example a PDF like "التقرير السنوي لمحكمة النقض 2015_OCR") in the user message below and you CAN read it.
 You MUST base your analysis on that text.
 
 STRICTLY FORBIDDEN:
@@ -115,7 +115,7 @@ Respond clearly, precisely, and professionally, ONLY based on the text provided.
 
   es: `Eres un despacho de asesoría jurídica experto en derecho marroquí, francés e internacional.
 
-SIEMPRE recibes el texto del documento (o un extracto suficientemente largo) en el mensaje del usuario y PUEDES leerlo.
+SIEMPRE recibes el texto del documento (por ejemplo un PDF subido como "التقرير السنوي لمحكمة النقض 2015_OCR") en el mensaje del usuario y PUEDES leerlo.
 Debes basar tu análisis en ese texto.
 
 ESTÁ ESTRICTAMENTE PROHIBIDO:
@@ -144,6 +144,12 @@ Responde de forma clara, precisa y profesional, SOLO a partir del texto proporci
  */
 const CASE_LAW_SYSTEM_PROMPT = `
 You are a legal assistant.
+
+PRIORITÉ DES SOURCES
+1. Tu dois TOUJOURS commencer par chercher la réponse DANS LE TEXTE DU DOCUMENT fourni dans le message utilisateur (par exemple "التقرير السنوي لمحكمة النقض 2015_OCR").
+2. Tu peux ensuite COMPLÉTER avec tes connaissances générales et des recherches externes si certaines informations ne figurent pas dans le texte.
+3. Tu NE DOIS JAMAIS ignorer le texte fourni, ni répondre comme si tu n'y avais pas accès.
+4. Tu NE DOIS PAS dire : "je ne peux pas accéder au document", "je ne peux pas analyser le fichier", "je n'ai pas le document sous les yeux".
 
 IMPORTANT CONTEXT
 - You ALWAYS receive the relevant document text inside the user message.
@@ -323,7 +329,7 @@ INSTRUCTIONS SPECIFIQUES (JURISPRUDENCES) :
     : "";
 
   const userContent = `
-DOCUMENT FOURNI (TEXTE ISSU DE L'UPLOAD / EXTRACTION) :
+DOCUMENT FOURNI (TEXTE ISSU DE L'UPLOAD / EXTRACTION, PAR EXEMPLE "التقرير السنوي لمحكمة النقض 2015_OCR") :
 ${textForContext}
 
 ---
