@@ -127,21 +127,44 @@ app.post("/api/analyze", upload.single("file"), async (req, res) => {
  */
 app.post("/api/ask", async (req, res) => {
   try {
-    const { text, question, language } = req.body;
+    const { text, question, language } = req.body as {
+      text?: string;
+      question?: string;
+      language?: string;
+    };
 
-    if (!text || !question) {
+    // Validation des paramètres
+    if (!text || typeof text !== "string" || text.trim().length < 20) {
       return res
         .status(400)
-        .json({ error: "Texte et question requis" });
+        .json({ error: "Texte du document manquant ou trop court" });
     }
 
-    console.log(`[API] Question: "${question.slice(0, 50)}..."`);
+    if (!question || typeof question !== "string" || question.trim().length === 0) {
+      return res
+        .status(400)
+        .json({ error: "Question requise" });
+    }
 
-    const answer = await askQuestion(text, question, language || "fr");
+    const lang = (language && typeof language === "string" ? language : "fr") as
+      | "fr"
+      | "ar"
+      | "en"
+      | "es";
+
+    console.log(
+      `[API] /api/ask - langue=${lang}, question="${question.slice(
+        0,
+        80
+      )}...", textLength=${text.length}`
+    );
+
+    // Appel au service DeepSeek (avec prompts renforcés)
+    const answer = await askQuestion(text, question, lang);
 
     res.json({
       success: true,
-      answer: answer,
+      answer,
     });
   } catch (error: any) {
     console.error("[API] Erreur question:", error);
