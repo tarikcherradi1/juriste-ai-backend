@@ -19,6 +19,9 @@ function getApiKey(): string {
 const ANALYSIS_PROMPT = {
   fr: `Tu es un cabinet de conseils juridiques expert spécialisé dans le droit marocain, français et international.
 
+TU REÇOIS CI‑DESSOUS LE TEXTE COMPLET DU DOCUMENT. Tu peux et tu dois l'analyser.
+Tu NE DOIS JAMAIS dire : "je ne peux pas accéder au document", "je ne peux pas analyser ce document" ou "copiez/collez le texte".
+
 Analyse ce document juridique de manière structurée et professionnelle.
 
 STRUCTURE DE L'ANALYSE :
@@ -57,6 +60,9 @@ Réponds de manière claire, précise et professionnelle.`,
 
   ar: `أنت مكتب استشارات قانونية متخصص في القانون المغربي والفرنسي والدولي.
 
+ستستقبل النص الكامل للوثيقة أدناه، ويجب عليك تحليله.
+لا تقل أبداً: "لا أستطيع الوصول إلى الوثيقة" أو "لا أستطيع تحليل هذه الوثيقة".
+
 قم بتحليل هذه الوثيقة القانونية بشكل منظم ومهني.
 
 هيكل التحليل:
@@ -72,6 +78,9 @@ Réponds de manière claire, précise et professionnelle.`,
 
   en: `You are an expert legal consulting firm specialized in Moroccan, French, and international law.
 
+You ALWAYS receive the full document text in the prompt below. You MUST analyse it.
+You MUST NOT say: "I cannot access the document", "I cannot analyse this document" or ask the user to copy/paste the text.
+
 Analyze this legal document in a structured and professional manner.
 
 ANALYSIS STRUCTURE:
@@ -86,6 +95,9 @@ ANALYSIS STRUCTURE:
 Respond clearly, precisely, and professionally.`,
 
   es: `Eres un despacho de asesoría jurídica experto especializado en derecho marroquí, francés e internacional.
+
+Siempre recibes el texto completo del documento en el mensaje de usuario y debes analizarlo.
+NO debes decir nunca: "no puedo acceder al documento" o "no puedo analizar este documento".
 
 Analiza este documento jurídico de manera estructurada y profesional.
 
@@ -103,17 +115,27 @@ Responde de manera clara, precisa y profesional.`,
 
 /**
  * Prompt système spécialisé pour les réponses "question + jurisprudence"
+ * (pour /api/ask)
  */
 const CASE_LAW_SYSTEM_PROMPT = `
 You are a legal assistant.
 
+IMPORTANT CONTEXT
+- You ALWAYS receive the relevant document text inside the user message.
+- You MUST assume that the text you see is exactly the content to analyze.
+- You MUST NOT say things like:
+  * "I cannot access the document"
+  * "I cannot analyse this document"
+  * "Please copy/paste the text"
+  * "I cannot list all jurisprudence".
+  Instead, you MUST work with the text you have and provide the BEST possible structured answer.
+
 GENERAL RULES
 - Always answer ONLY in the target language indicated in the instruction.
-- Base your reasoning FIRST on the supplied document, THEN complement with external legal sources when needed.
-- You MUST search conceptually in specialized and official legal sources (government and court websites, official law databases) when information is missing, but you MUST NOT invent case details.
-- If you are NOT sure of any information (country, date, court, decision number, case number, legal rule), you MUST explicitly say that it is incomplete or uncertain.
+- Base your reasoning FIRST on the supplied document, THEN complement with external legal knowledge when needed.
+- You MUST NOT invent case details. If you are not sure, clearly mark the information as uncertain.
 
-OUTPUT STRUCTURE (plain text, but ALWAYS in this order and with these headings):
+OUTPUT STRUCTURE (plain text, ALWAYS in this order and with these headings):
 
 1. Règle générale (max 100 caractères)
    - One concise sentence summarizing the general legal rule or the core idea.
@@ -145,7 +167,6 @@ CASE SELECTION RULES
 
 VALIDATION RULES
 - If a field is unknown or uncertain, write "inconnu (à vérifier)" instead of inventing.
-- Do NOT say that you "cannot list all jurisprudence"; instead, give the BEST FEW cases you can find according to the constraints above.
 - The whole answer must remain understandable for non-lawyers.
 `;
 
@@ -153,9 +174,6 @@ VALIDATION RULES
 /* FONCTIONS API                                                              */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Appelle l'API DeepSeek
- */
 async function callDeepSeek(
   systemPrompt: string,
   userContent: string,
@@ -190,7 +208,7 @@ async function callDeepSeek(
 }
 
 /**
- * Analyse un document juridique (structure d'analyse générale)
+ * Analyse un document juridique
  */
 export async function analyzeDocument(
   documentText: string,
@@ -204,7 +222,6 @@ export async function analyzeDocument(
     ANALYSIS_PROMPT[language as keyof typeof ANALYSIS_PROMPT] ||
     ANALYSIS_PROMPT.fr;
 
-  // Limiter le texte si trop long
   const maxLength = 30000;
   let textToAnalyze = documentText;
   if (documentText.length > maxLength) {
@@ -213,7 +230,7 @@ export async function analyzeDocument(
       "\n\n[... document tronqué pour l'analyse ...]";
   }
 
-  const userContent = `Voici le document à analyser :\n\n${textToAnalyze}`;
+  const userContent = `TEXTE DU DOCUMENT À ANALYSER (ENTIER OU PARTIEL) :\n\n${textToAnalyze}`;
 
   const analysis = await callDeepSeek(systemPrompt, userContent);
 
@@ -242,7 +259,6 @@ export async function askQuestion(
 
   const targetLang = langNames[language] || "French";
 
-  // Prompt système spécialisé pour Q/R + jurisprudence
   const systemPrompt = `
 ${CASE_LAW_SYSTEM_PROMPT}
 
@@ -250,7 +266,6 @@ TARGET LANGUAGE
 - You MUST answer ONLY in ${targetLang}.
 `;
 
-  // Limiter le texte si trop long
   const maxLength = 25000;
   let textForContext = documentText;
   if (documentText.length > maxLength) {
@@ -259,19 +274,18 @@ TARGET LANGUAGE
   }
 
   const userContent = `
-Document (contexte) :
+DOCUMENT FOURNI (CONTEXTE) :
 ${textForContext}
 
 ---
 
-Question de l'utilisateur :
+QUESTION DE L'UTILISATEUR :
 ${question}
 
-Tâche :
-1. Identifier la règle générale de droit applicable (max 100 caractères).
-2. Identifier la base légale (articles de loi, codes, mots-clés) en max 100 caractères.
-3. Proposer des jurisprudences pertinentes (Maroc, France, Espagne, Égypte) en respectant STRICTEMENT la structure demandée.
-4. Rester compréhensible pour des non-juristes.
+RAPPEL IMPORTANT :
+- Tu disposes bien du texte ci‑dessus.
+- Tu NE DOIS PAS dire que tu ne peux pas accéder au document.
+- Tu dois répondre en suivant strictement la structure demandée (Règle générale, Base légale, Jurisprudence).
 `;
 
   const answer = await callDeepSeek(systemPrompt, userContent, 0.2);
