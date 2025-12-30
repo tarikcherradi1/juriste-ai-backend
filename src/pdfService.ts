@@ -1,3 +1,4 @@
+// @ts-ignore - pdf-parse n'a pas de types TypeScript
 import pdf from "pdf-parse";
 import Tesseract from "tesseract.js";
 import sharp from "sharp";
